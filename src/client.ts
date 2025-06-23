@@ -181,6 +181,12 @@ export class NSScript {
 	): Promise<string> {
 		const response = await this.makeNsHtmlRequest(pagePath, payload, true, false);
 		if (!response.ok) {
+			// When using Fetch API, buttons can be re-enabled once the Promise returned 
+			// from one of the Response object's methods (such as text()) is resolved.
+			response.text().then((_) => {
+				simultaneity.handleUnlock(this); // Unlocks submit buttons and clears the request in progress state
+			});
+
 			throw new Error(`Failed to fetch page: ${response.statusText}`);
 		}
 		const text = await response.text();
