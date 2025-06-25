@@ -347,4 +347,89 @@ export async function handleRenameGovernor(
 	return false;
 }
 
-// TODO: uploading flags/banners, as well as detag wfe's from pauls website
+export async function handleUploadBanner(
+	context: NSScript,
+	bannerFile: File,
+	regionName: string,
+): Promise<number | null> {
+	const payload = {
+		page: "region_control",
+		expect: "json",
+		uploadtype: "rbanner",
+		file_upload_rbanner: bannerFile,
+		region: regionName,
+	};
+
+	const json = await context.makeNsJsonRequest("/cgi-bin/upload.cgi", payload);
+	if("id" in json) {
+		context.statusBubble.success("Uploaded banner");
+		return json.id;
+	}
+	if("err" in json) {
+		context.statusBubble.warn(
+			`Failed to upload banner: ${json.err}`,
+		);
+	}
+	context.statusBubble.warn(
+		"Failed to upload banner",
+	);
+	return null;
+}
+
+export async function handleUploadFlag(
+	context: NSScript,
+	flagFile: File,
+	regionName: string,
+): Promise<number | null> {
+	const payload = {
+		page: "region_control",
+		expect: "json",
+		uploadtype: "rflag",
+		file_upload_rflag: flagFile,
+		region: regionName,
+	};
+
+	const json = await context.makeNsJsonRequest("/cgi-bin/upload.cgi", payload);
+	if("id" in json) {
+		context.statusBubble.success("Uploaded flag");
+		return json.id;
+	}
+	if("err" in json) {
+		context.statusBubble.warn(
+			`Failed to upload flag: ${json.err}`,
+		);
+	}
+	context.statusBubble.warn(
+		"Failed to upload flag",
+	);
+	return null;
+}
+
+export async function handleSetBannerAndFlag(
+	context: NSScript,
+	regionName: string,
+	bannerId: number,
+	flagId: number,
+): Promise<boolean> {
+	const payload = {
+		page: "region_control",
+		newbanner: bannerId.toString(),
+        newflag: flagId.toString(),
+		saveflagandbannerchanges: "1",
+        flagmode: "flag",
+        newflagmode: "flag",
+		region: regionName,
+	};
+
+	const text = await context.getNsHtmlPage(`page=region_control/region=${regionName}`, payload);
+	if(text.includes("banner/flag updated!")) {
+		context.statusBubble.success("Set new flag and banner");
+		return true;
+	}
+	context.statusBubble.warn(
+		"Failed to set new flag and banner",
+	);
+	return false;
+}
+
+// TODO: detag wfe's from pauls website
