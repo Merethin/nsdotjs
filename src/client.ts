@@ -89,7 +89,7 @@ export class NSScript {
 	 */
 	public async makeNsHtmlRequest(
 		pagePath: string,
-		payload?: Record<string, string | number | boolean>,
+		payload?: Record<string, string | number | boolean | File>,
 		followRedirects = true,
 	): Promise<Response> {
 		if (!simultaneity.handleCheck(this)) {
@@ -110,12 +110,16 @@ export class NSScript {
 			// These will be passed as URL search parameters.
 			const requestParams = new URLSearchParams();
 			// These will be passed as form data in the request body.
-			const payloadParams = new URLSearchParams();
+			const payloadParams = new FormData();
 
 			// Add payload data to payloadParams if provided
 			if (payload) {
-				Object.entries(payload).forEach(([key, value]) => 
-					payloadParams.append(key, String(value)));
+				Object.entries(payload).forEach(([key, value]) => {
+					if(value instanceof File) 
+						payloadParams.append(key, value);
+					else
+						payloadParams.append(key, String(value));
+				});
 			}
 
 			// Add special parameters
@@ -165,7 +169,7 @@ export class NSScript {
 	 */
 	public async getNsHtmlPage(
 		pagePath: string,
-		payload?: Record<string, string | number | boolean>,
+		payload?: Record<string, string | number | boolean | File>,
 	): Promise<string> {
 		const response = await this.makeNsHtmlRequest(pagePath, payload);
 		if (!response.ok) {
@@ -185,6 +189,40 @@ export class NSScript {
 		const doc = parseHtml(text);
 		storeAuth(doc);
 		return text;
+	}
+
+	/**
+	 * Makes a request to a NationStates page that 
+	 * provides a JSON response and parses said response.
+	 * While most NationStates pages don't provide JSON 
+	 * responses, this method is useful for the few that do.
+	 * (example: upload.cgi, to upload flags and banners)
+	 * @param pagePath The path to the page on NationStates.
+	 * @param payload Optional payload to send with the request.
+	 * @returns A Promise that resolves to the parsed JSON object.
+	 * @throws Error if the request fails.
+	 */
+	public async makeNsJsonRequest(
+		pagePath: string,
+		payload?: Record<string, string | number | boolean | File>,
+	): Promise<any> {
+		const response = await this.makeNsHtmlRequest(pagePath, payload);
+		if (!response.ok) {
+			// When using Fetch API, buttons can be re-enabled once the Promise returned 
+			// from one of the Response object's methods (such as text()) is resolved.
+			response.text().then((_) => {
+				simultaneity.handleUnlock(this); // Unlocks submit buttons and clears the request in progress state
+			});
+
+			throw new Error(`Failed to fetch page: ${response.statusText}`);
+		}
+		const text = await response.text();
+
+		// When using Fetch API, buttons can be re-enabled once the Promise returned 
+		// from one of the Response object's methods (such as text()) is resolved.
+		simultaneity.handleUnlock(this); // Unlocks submit buttons and clears the request in progress state
+		
+		return JSON.parse(text);
 	}
 
 	/**
@@ -339,6 +377,49 @@ export class NSScript {
 	 */
 	public async removeTag(tag: ValidRegionTag): Promise<boolean> {
 		return region.handleTag(this, "remove", tag);
+	}
+
+	/**
+	 * Uploads a banner to the given region.
+	 * @param bannerFile The image file to upload.
+	 * @param regionName The region to upload the banner to.
+	 * @returns A Promise that resolves to the banner's ID (later used to actually set the banner) if
+	 * successful, null otherwise (if there is a security check or the current nation has no authority).
+	 */
+	public async uploadBanner(
+		bannerFile: File,
+		regionName: string,
+	): Promise<number | null> {
+		return region.handleUploadBanner(this, bannerFile, regionName);
+	}
+
+	/**
+	 * Uploads a flag to the given region.
+	 * @param flagFile The image file to upload.
+	 * @param regionName The region to upload the flag to.
+	 * @returns A Promise that resolves to the flag's ID (later used to actually set the flag) if
+	 * successful, null otherwise (if there is a security check or the current nation has no authority).
+	 */
+	public async uploadFlag(
+		flagFile: File,
+		regionName: string,
+	): Promise<number | null> {
+		return region.handleUploadFlag(this, flagFile, regionName);
+	}
+
+	/**
+	 * Sets a region's flag and banner after uploading.
+	 * @param regionName The region to update the appearance of.
+	 * @param bannerId The ID obtained from a successful call to uploadBanner().
+	 * @param flagId The ID obtained from a successful call to uploadFlag().
+	 * @returns A Promise that resolves to true if the operation is successful, false otherwise.
+	 */
+	public async setBannerAndFlag(
+		regionName: string,
+		bannerId: number,
+		flagId: number,
+	): Promise<boolean> {
+		return region.handleSetBannerAndFlag(this, regionName, bannerId, flagId);
 	}
 
 	/**
