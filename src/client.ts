@@ -8,6 +8,7 @@ import * as simultaneity from "./networking/html/handlers/simultaneity";
 import waitForSpace from "./networking/html/handlers/userInput";
 import * as wa from "./networking/html/handlers/worldAssembly";
 import type { ValidRegionTag } from "./networking/html/types";
+import { RateLimiter } from "./networking/api/rateLimiter";
 
 /**
  * Represents a script for interacting with NationStates, providing methods for authentication,
@@ -21,6 +22,7 @@ export class NSScript {
 	private scriptName: string;
 	private scriptVersion: string;
 	private scriptAuthor: string;
+	private rateLimiter: RateLimiter;
 	public statusBubble: StatusBubble;
 	public currentUser: string;
 	public userInputHandler: () => Promise<void> = waitForSpace; // Default user input handler
@@ -47,6 +49,7 @@ export class NSScript {
 		this.scriptAuthor = author;
 		this.currentUser = user;
 		this.statusBubble = StatusBubble.getInstance();
+		this.rateLimiter = new RateLimiter(name, version, author, user);
 		this.userInputHandler = userInputHandler;
 	}
 
@@ -169,6 +172,20 @@ export class NSScript {
 			simultaneity.handleUnlock(this); // Unlocks submit buttons and clears the request in progress state
 			throw err;
 		}
+	}
+
+	public async makeNsAPIRequest(
+		payload: Record<string, string | number | boolean>,
+	): Promise<Response> {
+		return this.rateLimiter.makeRequest("cgi-bin/api.cgi", payload);
+	}
+
+	public async makeNsAPIXmlRequest(
+		payload: Record<string, string | number | boolean>,
+	): Promise<Document> {
+		let response = await this.makeNsAPIRequest(payload);
+		let parser = new DOMParser();
+		return parser.parseFromString(await response.text(), "text/xml");
 	}
 
 	/**
