@@ -500,8 +500,8 @@ export class NSScript {
 	 */
 	public async setBannerAndFlag(
 		regionName: string,
-		bannerId: number,
-		flagId: number,
+		bannerId: number | string,
+		flagId: number | string,
 	): Promise<boolean> {
 		return region.handleSetBannerAndFlag(this, regionName, bannerId, flagId);
 	}
