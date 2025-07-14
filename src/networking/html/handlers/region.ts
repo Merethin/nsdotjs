@@ -230,7 +230,7 @@ export async function handleUploadBanner(
 	const json = await context.makeNsJsonRequest("/cgi-bin/upload.cgi", payload);
 	if("id" in json) {
 		context.statusBubble.success("Uploaded banner");
-		return json.id;
+		return json.id.toString();
 	}
 	if("err" in json) {
 		context.statusBubble.warn(
@@ -259,7 +259,7 @@ export async function handleUploadFlag(
 	const json = await context.makeNsJsonRequest("/cgi-bin/upload.cgi", payload);
 	if("id" in json) {
 		context.statusBubble.success("Uploaded flag");
-		return json.id;
+		return json.id.toString();
 	}
 	if("err" in json) {
 		context.statusBubble.warn(
@@ -275,8 +275,8 @@ export async function handleUploadFlag(
 export async function handleSetBannerAndFlag(
 	context: NSScript,
 	regionName: string,
-	bannerId: number,
-	flagId: number,
+	bannerId: number | string,
+	flagId: number | string,
 ): Promise<boolean> {
 	const payload = {
 		page: "region_control",
